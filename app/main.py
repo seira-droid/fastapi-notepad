@@ -5,9 +5,11 @@ from jose import JWTError, jwt
 from datetime import datetime
 from typing import List
 from sqlalchemy import asc
+from pydantic import BaseModel
 
 from app import models, schemas, auth
 from app.database import Base, engine, get_db
+from service.llm import summarize_text  # <-- LLM placeholder import
 
 # ---------- App ----------
 app = FastAPI(title="FastAPI Notepad")
@@ -67,7 +69,6 @@ def create_task(task: schemas.TaskCreate, current_user: models.User = Depends(ge
 def get_tasks(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.Task).filter(models.Task.owner_id == current_user.id).all()
 
-# ---------- Calendar ----------
 @app.get("/tasks/calendar/{task_id}", response_model=schemas.TaskResponse)
 def get_task_for_calendar(task_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(
@@ -78,7 +79,6 @@ def get_task_for_calendar(task_id: int, current_user: models.User = Depends(get_
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
-# ---------- History ----------
 @app.get("/tasks/history", response_model=List[schemas.TaskResponse])
 def get_task_history(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     tasks = db.query(models.Task).filter(
@@ -88,7 +88,6 @@ def get_task_history(current_user: models.User = Depends(get_current_user), db: 
     ).all()
     return tasks
 
-# ---------- Get single task by ID ----------
 @app.get("/tasks/{task_id}", response_model=schemas.TaskResponse)
 def get_task(task_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(
@@ -126,3 +125,18 @@ def delete_task(task_id: int, current_user: models.User = Depends(get_current_us
     db.delete(task)
     db.commit()
     return {"detail": "Task deleted successfully"}
+
+# ---------- LLM Placeholder Endpoint ----------
+class LLMRequest(BaseModel):
+    text: str
+
+class LLMResponse(BaseModel):
+    summary: str
+
+@app.post("/tasks/summarize", response_model=LLMResponse)
+def summarize_task_endpoint(request: LLMRequest):
+    """
+    Generate a summary of any text using the local placeholder LLM.
+    """
+    summary = summarize_text(request.text)
+    return {"summary": summary}
